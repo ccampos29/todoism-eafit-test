@@ -1,40 +1,61 @@
 import { test, expect } from "@playwright/test";
-import { LoginPage } from '../pages/LoginPage';
-import { TaskPage } from '../pages/TaskPage';
-import { IntroPage } from '../pages/IntroPage';
 
 test.describe("suite de pruebas", () => {
-  let loginPage: LoginPage;
-  let taskPage: TaskPage;
-  let introPage: IntroPage;
+  async function login({ page }) {
+    await page.goto("http://127.0.0.1:5000/#intro");
+    await page
+      .getByRole("navigation")
+      .getByRole("link", { name: "Login" })
+      .click();
+    await page.getByText("Get a test account").click();
+    await page.waitForSelector("#login-btn", { state: "visible" });
+    await page.locator("#login-btn").click();
+  }
 
-  test.beforeEach(async ({page}) => {
-      test.slow();
-      loginPage = new LoginPage(page);
-      taskPage = new TaskPage(page);
-      introPage = new IntroPage(page);
-      await introPage.goToLogin();
-      await loginPage.loginWithTestAccount();
-  });
-
-  test('Add task', async ({ page }) => {
-      await taskPage.addTask('New homework');
-      await taskPage.verifyTaskVisible('New homework');
-  });
-
-    test('Complete task', async ({ page }) => {
-      await taskPage.addTask('Nueva tarea');
-      await taskPage.completeTask('Nueva tarea');
-      
-      // Verificar que la tarea está marcada como completada (verificamos usando el icono de completada)
-      await expect(page.locator('span:has-text("check_box Nueva tarea")')).toBeVisible();
-  });
-
-    test('Clear task', async ({ page }) => {
-      await taskPage.addTask('homework');
-      await taskPage.completeTask('homework');
-      await taskPage.clearTasks();
-
-      await expect(page.locator('text=homework')).not.toBeVisible();
+  async function agregarTarea({ page, tarea }) {
+    await page.waitForSelector('[placeholder="What needs to be done?"]', {
+      state: "visible",
     });
+    await page.getByPlaceholder("What needs to be done?").click();
+    await page.getByPlaceholder("What needs to be done?").fill(tarea);
+    await page.getByPlaceholder("What needs to be done?").press("Enter");
+  }
+
+  test.beforeEach(async ({ page }) => {
+    await login({ page });
+  });
+
+  test("agregar tarea", async ({ page }) => {
+    const tarea = "Mi primera tarea";
+    await agregarTarea({ page, tarea });
+    await expect(page.getByText(tarea)).toBeVisible();
+  });
+
+  test("completar tarea", async ({ page }) => {
+    const tarea = "Mi primera tarea";
+    await agregarTarea({ page, tarea });
+    await page
+      .locator("span")
+      .filter({ hasText: "check_box_outline_blank Mi" })
+      .locator("i")
+      .click();
+    await expect(
+      page
+        .locator("span")
+        .filter({ hasText: "check_box Mi primera tarea" })
+        .locator("i")
+    ).toBeVisible();
+  });
+
+  test("limpiar tareas", async ({ page }) => {
+    const tarea = "Mi primera tarea";
+    await agregarTarea({ page, tarea });
+    await page
+      .locator("span")
+      .filter({ hasText: "check_box_outline_blank Mi" })
+      .locator("i")
+      .click();
+    await page.getByText("clear_allClear").click();
+    await expect(page.getByText("Done")).toBeVisible();
+  });
 });
