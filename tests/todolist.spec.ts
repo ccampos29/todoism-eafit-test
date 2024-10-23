@@ -1,61 +1,33 @@
 import { test, expect } from "@playwright/test";
+import { LoginPage } from "./../pages/LoginPage";
+import { TodoPage } from "./../pages/TodoPage";
 
 test.describe("suite de pruebas", () => {
-  async function login({ page }) {
-    await page.goto("http://127.0.0.1:5000/#intro");
-    await page
-      .getByRole("navigation")
-      .getByRole("link", { name: "Login" })
-      .click();
-    await page.getByText("Get a test account").click();
-    await page.waitForSelector("#login-btn", { state: "visible" });
-    await page.locator("#login-btn").click();
-  }
-
-  async function agregarTarea({ page, tarea }) {
-    await page.waitForSelector('[placeholder="What needs to be done?"]', {
-      state: "visible",
-    });
-    await page.getByPlaceholder("What needs to be done?").click();
-    await page.getByPlaceholder("What needs to be done?").fill(tarea);
-    await page.getByPlaceholder("What needs to be done?").press("Enter");
-  }
+  let loginPage: LoginPage;
+  let todoPage: TodoPage;
+  const TAREA = 'Mi primera tarea';
 
   test.beforeEach(async ({ page }) => {
-    await login({ page });
+    loginPage = new LoginPage(page);
+    todoPage = new TodoPage(page);
+
+    await loginPage.navigateTo();
+    await loginPage.login();
+    await todoPage.addTask(TAREA);
   });
 
-  test("agregar tarea", async ({ page }) => {
-    const tarea = "Mi primera tarea";
-    await agregarTarea({ page, tarea });
-    await expect(page.getByText(tarea)).toBeVisible();
+  test("agregar tarea", async () => {
+    expect(await todoPage.isTaskVisible(TAREA)).toBeVisible();
   });
 
-  test("completar tarea", async ({ page }) => {
-    const tarea = "Mi primera tarea";
-    await agregarTarea({ page, tarea });
-    await page
-      .locator("span")
-      .filter({ hasText: "check_box_outline_blank Mi" })
-      .locator("i")
-      .click();
-    await expect(
-      page
-        .locator("span")
-        .filter({ hasText: "check_box Mi primera tarea" })
-        .locator("i")
-    ).toBeVisible();
+  test("completar tarea", async () => {
+    await todoPage.completeTask(TAREA);
+    expect(await todoPage.isTaskCompleted(TAREA)).toBeVisible();
   });
 
-  test("limpiar tareas", async ({ page }) => {
-    const tarea = "Mi primera tarea";
-    await agregarTarea({ page, tarea });
-    await page
-      .locator("span")
-      .filter({ hasText: "check_box_outline_blank Mi" })
-      .locator("i")
-      .click();
-    await page.getByText("clear_allClear").click();
-    await expect(page.getByText("Done")).toBeVisible();
+  test("limpiar tareas", async () => {
+    await todoPage.completeTask(TAREA);
+    await todoPage.clearCompletedTasks();
+    expect(await todoPage.isTaskVisible("Done")).toBeVisible();
   });
 });
